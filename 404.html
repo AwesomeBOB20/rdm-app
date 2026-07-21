@@ -5,8 +5,17 @@
     <link rel="icon" type="image/png" href="/rdm-logo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>RDM</title>
-    <script type="module" crossorigin src="/assets/index-CQqeFo5m.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-C4nBcbnQ.css">
+    <meta name="theme-color" content="#1c1a1f" />
+    <!-- Painted BEFORE any stylesheet or script loads. The app's dark background lives in index.css,
+         which arrives with the JS bundle, so on every refresh the browser had a moment with nothing to
+         paint but its default white. Inlining it here kills that flash: the page is already dark when
+         the branded launch screen fades in on top. -->
+    <style>
+      html { background-color: #1c1a1f; color-scheme: dark; }
+      body { margin: 0; background-color: #1c1a1f; }
+    </style>
+    <script type="module" crossorigin src="/assets/index-BHZ0uvpM.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-C5ZIEoiz.css">
   </head>
   <body>
     <div id="root"></div>
