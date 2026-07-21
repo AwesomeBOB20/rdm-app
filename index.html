@@ -5,14 +5,14 @@
     <link rel="icon" type="image/png" href="/rdm-logo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>RDM</title>
-    <meta name="theme-color" content="#1c1a1f" />
-    <!-- Painted BEFORE any stylesheet or script loads. The app's dark background lives in index.css,
-         which arrives with the JS bundle, so on every refresh the browser had a moment with nothing to
-         paint but its default white. Inlining it here kills that flash: the page is already dark when
-         the branded launch screen fades in on top. -->
+    <meta name="theme-color" content="#29535d" />
+    <!-- Painted BEFORE any stylesheet or script loads, so the browser never shows its default white.
+         The app background lives in index.css, which only arrives with the JS bundle. -->
     <style>
-      html { background-color: #1c1a1f; color-scheme: dark; }
-      body { margin: 0; background-color: #1c1a1f; }
+      /* #29535d is the brand background's own average colour once dimmed, so this first paint is already
+         the colour of every screen that follows — nothing ever changes shade. */
+      html { background-color: #29535d; color-scheme: dark; }
+      body { margin: 0; background-color: #29535d; }
 
       /* The launch screen lives in the HTML, not in React, so it paints on the FIRST frame — at the same
          moment as the background, before a single byte of JS has run. Built as a React component it
@@ -22,7 +22,11 @@
       #boot {
         position: fixed; inset: 0; z-index: 100;
         display: grid; place-items: center;
-        background-color: #1c1a1f;
+        background-color: #29535d;
+        /* the identical layer the app shell uses, so when this fades there is literally nothing to see
+           change behind it */
+        background-image: linear-gradient(rgba(20,18,22,.4), rgba(20,18,22,.52)), url(/rdm-bg.png);
+        background-size: cover; background-position: center;
         opacity: 1; transition: opacity 420ms ease;
       }
       #boot.is-leaving { opacity: 0; pointer-events: none; }
@@ -56,8 +60,8 @@
         #boot.is-leaving img { transform: none; }
       }
     </style>
-    <script type="module" crossorigin src="/assets/index-BpUiRaGa.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-BFoIX4Q6.css">
+    <script type="module" crossorigin src="/assets/index-CCCWxTje.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-EM_0oRxj.css">
   </head>
   <body>
     <div id="boot">
