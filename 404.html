@@ -5,14 +5,14 @@
     <link rel="icon" type="image/png" href="/rdm-logo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>RDM</title>
-    <meta name="theme-color" content="#29535d" />
+    <meta name="theme-color" content="#1f343b" />
     <!-- Painted BEFORE any stylesheet or script loads, so the browser never shows its default white.
          The app background lives in index.css, which only arrives with the JS bundle. -->
     <style>
-      /* #29535d is the brand background's own average colour once dimmed, so this first paint is already
+      /* #1f343b is the brand background's own average colour once dimmed, so this first paint is already
          the colour of every screen that follows — nothing ever changes shade. */
-      html { background-color: #29535d; color-scheme: dark; }
-      body { margin: 0; background-color: #29535d; }
+      html { background-color: #1f343b; color-scheme: dark; }
+      body { margin: 0; background-color: #1f343b; }
 
       /* The launch screen lives in the HTML, not in React, so it paints on the FIRST frame — at the same
          moment as the background, before a single byte of JS has run. Built as a React component it
@@ -22,7 +22,7 @@
       #boot {
         position: fixed; inset: 0; z-index: 100;
         display: grid; place-items: center;
-        background-color: #29535d;
+        background-color: #1f343b;
         /* the identical layer the app shell uses, so when this fades there is literally nothing to see
            change behind it */
         background-image: linear-gradient(rgba(20,18,22,.4), rgba(20,18,22,.52)), url(/rdm-bg.png);
@@ -60,8 +60,8 @@
         #boot.is-leaving img { transform: none; }
       }
     </style>
-    <script type="module" crossorigin src="/assets/index-DXoMVoXP.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-CZX0upli.css">
+    <script type="module" crossorigin src="/assets/index-7cFSZSrc.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-Cc1GPxBP.css">
   </head>
   <body>
     <div id="boot">
@@ -71,6 +71,6 @@
         <div class="b-bar" role="status" aria-label="Loading"><i></i></div>
       </div>
     </div>
-    <div id="root"></div>
+    <div id="root"></div>
   </body>
 </html>
