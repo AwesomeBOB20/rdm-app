@@ -1,0 +1,15 @@
+{
+  "name": "RDM Practice Tools",
+  "short_name": "RDM",
+  "description": "Playalongs, the Sight-Reading Lab and the Metronome. Rudimental Drumming Mastery.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#1f343b",
+  "theme_color": "#14282e",
+  "icons": [
+    { "src": "/rdm-logo.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/rdm-logo.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

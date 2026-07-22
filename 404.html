@@ -5,7 +5,11 @@
     <link rel="icon" type="image/png" href="/rdm-logo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>RDM</title>
+    <!-- Two theme colours on purpose. In a browser TAB this tints the toolbar at the TOP, so it matches
+         the page background. Installed (standalone), the manifest's theme_color takes over and Android
+         uses it for the system bars, which is why that one is the bottom bar's colour instead. -->
     <meta name="theme-color" content="#1f343b" />
+    <link rel="manifest" href="/site.webmanifest" />
     <!-- Painted BEFORE any stylesheet or script loads, so the browser never shows its default white.
          The app background lives in index.css, which only arrives with the JS bundle. -->
     <style>
@@ -60,8 +64,8 @@
         #boot.is-leaving img { transform: none; }
       }
     </style>
-    <script type="module" crossorigin src="/assets/index-D8pYqVfM.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-y9wErcn2.css">
+    <script type="module" crossorigin src="/assets/index-Bvtjs2W2.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-BeDzK2pK.css">
   </head>
   <body>
     <div id="boot">
