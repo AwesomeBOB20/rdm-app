@@ -30,11 +30,15 @@
     <!-- Painted BEFORE any stylesheet or script loads, so the browser never shows its default white.
          The app background lives in index.css, which only arrives with the JS bundle. -->
     <style>
-      /* #234048 is the brand background's own average colour once dimmed (0.62 — see .shell in
-         App.css), so this first paint is already the colour of every screen that follows — nothing
-         ever changes shade. */
-      html { background-color: #234048; color-scheme: dark; }
-      body { margin: 0; background-color: #234048; }
+      /* The ROOT background is #14282e, the app's bottom-nav colour, NOT the #234048 dim-average that
+         the visible surfaces use. Chrome on Android tints the bottom system navigation bar from the
+         page's root background, so this is what makes that OS bar match the app's own bottom bar
+         (Anthony's screenshot, 2026-07-23). It must be set here too, not only in index.css, so the OS
+         bar is right from the first paint before the CSS bundle loads. The root is never itself visible
+         (the #boot splash below, then the .shell, both paint the #234048 dimmed brand image over it), so
+         the visible load colour is still #234048 throughout — only the OS-bar sample uses #14282e. */
+      html { background-color: #14282e; color-scheme: dark; }
+      body { margin: 0; background-color: #14282e; }
 
       /* The launch screen lives in the HTML, not in React, so it paints on the FIRST frame — at the same
          moment as the background, before a single byte of JS has run. Built as a React component it
@@ -85,8 +89,8 @@
         #boot.is-leaving img { transform: none; }
       }
     </style>
-    <script type="module" crossorigin src="/assets/index-c1Y9Cg6m.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-4ZG_OUdZ.css">
+    <script type="module" crossorigin src="/assets/index-Bo2mmemo.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-DqSV-Wb6.css">
   </head>
   <body>
     <div id="boot">
