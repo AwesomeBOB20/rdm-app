@@ -14,11 +14,18 @@
     <meta property="og:title" content="RDM Practice Tools" />
     <meta property="og:description" content="500+ looping Playalongs, a Sight-Reading Lab, and a marching Metronome. Get clean hands, fast." />
     <meta property="og:url" content="https://app.rudimentaldrummingmastery.com/" />
-    <meta property="og:image" content="https://app.rudimentaldrummingmastery.com/icons/icon-512.png" />
-    <meta name="twitter:card" content="summary" />
+    <!-- 1200x630, teal to every edge. This used to point at icons/icon-512.png, which is a SQUARE with
+         opaque white corners: Messages/iMessage/Slack pillarboxed it in white and the rounded corners
+         showed. summary_large_image (was "summary") is what makes the preview render wide instead of as
+         a thumbnail beside the text. (Anthony, 2026-07-26) -->
+    <meta property="og:image" content="https://app.rudimentaldrummingmastery.com/og-rdm.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Rudimental Drumming Mastery" />
+    <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="RDM Practice Tools" />
     <meta name="twitter:description" content="500+ looping Playalongs, a Sight-Reading Lab, and a marching Metronome. Get clean hands, fast." />
-    <meta name="twitter:image" content="https://app.rudimentaldrummingmastery.com/icons/icon-512.png" />
+    <meta name="twitter:image" content="https://app.rudimentaldrummingmastery.com/og-rdm.png" />
     <!-- theme-color = the app's bottom-nav colour (#14282e / --nav-bg), NOT the page background.
          Proven by two device screenshots (Anthony, 2026-07-23): Chrome for Android tints the bottom
          SYSTEM navigation bar from THIS meta tag, and with it set to the page bg (#234048) that OS bar
