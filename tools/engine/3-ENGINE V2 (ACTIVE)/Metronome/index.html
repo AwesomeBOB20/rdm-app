@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>RDM Metronome</title>
+<meta name="description" content="RDM Metronome — the advanced marching metronome. Ratio rhythms, custom subdivisions, accent editing." />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@300;400;500;700&display=block" rel="stylesheet" />
+<link rel="stylesheet" href="../shared/rdm-theme.css?v=202607284" />
+
+<!-- shared notation engine (same as the Playalongs tool) — VexFlow + the RDM renderer -->
+<script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.3/build/cjs/vexflow.js"></script>
+<script src="../shared/musicxml-to-rdm.js?v=202607201"></script>
+<script src="../shared/rdm-vexflow.js?v=202607250"></script>
+<script src="../shared/rdm-dialogs.js?v=202607191"></script>
+
+<style>
+  /* ===== RDM Metronome — unified with Playalongs =====
+     Beats float directly on the page background (NO panel behind them) and span the full width.
+     Number sits centered below. ALL controls live in ONE teal card. No drop shadows anywhere. Time
+     signature is a single control that opens a preset popup (like the Sight-Reading Lab). */
+
+  :root{ --orange:#d35400; --blue-deep:#058890; }
+
+  html,body{height:100%;background:#39353c;}
+  body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;-webkit-touch-callout:none;}
+  input,textarea,[contenteditable="true"]{-webkit-user-select:text;-moz-user-select:text;-ms-user-select:text;user-select:text;}
+
+  /* TOP-anchored (not centered) so adding/removing subdivisions grows the content downward instead of
+     re-centering and shoving the whole tool up. */
+  .app-shell{
+    /* border-box matters: without it the min-height BELOW is content-only, so the padding-top that
+       recentreShell() writes made the shell taller than the screen — it overflowed the tool area (which
+       clips) and the tool ended up sitting low and cut off instead of centred. */
+    box-sizing:border-box;
+    min-height:100vh;min-height:100dvh;min-height:var(--vvh,100dvh);
+    display:flex;flex-direction:column;justify-content:flex-start;gap:10px;
+    padding:clamp(16px,4vh,40px) 20px 24px;max-width:900px;margin-inline:auto;   /* Anthony 2026-07-19: 900 reads better than the full 1200 stage width */
+    /* padding-top is overwritten by recentreShell() in script.js, which centres the TALLEST state so a
+       panel opening fills reserved space instead of moving the tool. The clamp above is the fallback. */
+  }
+  /* --popup-maxh is the ONE shared height cap for every popup (picker + shortcuts). Mobile = 88% of the
+     visible viewport (use most of the space above the keyboard); desktop = 82% for a little more breathing
+     room top+bottom. Equal gap above/below (flex-centered). Matches Playalongs; single source of truth. */
+  :root{ --popup-maxh:calc(var(--vvh,100dvh) * .88); }
+  @media (min-width:700px){ :root{ --popup-maxh:calc(var(--vvh,100dvh) * .82); } }
+  .modal{top:var(--vvo,0);bottom:auto;height:var(--vvh,100dvh);}
+  .modal__stack{max-height:var(--popup-maxh);}
+  /* teal picker theme now lives in shared/rdm-theme.css (promoted 2026-07-31 so Playalongs can use it too) */
+  /* popup list scrollbar styling is centralized in rdm-theme.css — one look across all tools */
+  /* sectioned two-column picker (Time Signature) — Simple / Compound / Asymmetric, like the Sightreading Lab */
+  .modal__list--twocol{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+  /* category header = label + a FLAT full-width line beneath it (square ends, no hover, no rounded corners).
+     Used by BOTH the time-sig picker (two-column) and the subdivision picker (single column). The selector
+     is `.modal__list li.modal__grouphdr` so it out-specifies the shared `.modal__list li{border:none}` and
+     the border-bottom line actually shows. */
+  .modal__list li.modal__grouphdr{font-size:.82rem;font-weight:800;letter-spacing:.05em;text-transform:uppercase;
+    color:#fff;opacity:.92;border-bottom:2px solid rgba(255,255,255,.55);border-radius:0;padding:14px 4px 6px;
+    margin-top:8px;background:transparent;cursor:default;pointer-events:none;}
+  .modal__list li.modal__grouphdr:first-child{margin-top:0;}
+  .modal__list--twocol .modal__grouphdr{grid-column:1/-1;}
+  .modal__list--twocol li:not(.modal__grouphdr){text-align:center;font-weight:600;}
+  /* picker options that carry a rendered glyph. Glyphs use currentColor so they track the row's text color
+     (white normally + on hover, brand color when the row is the active/selected one). */
+  .modal__opt--rhythm{display:flex;align-items:center;justify-content:space-between;gap:14px;}
+  /* small breathing room between a section's underline and its FIRST option (matches the time-sig picker's
+     grid gap), so the option — especially the white active row — doesn't butt against the line */
+  .modal__grouphdr + .modal__opt--rhythm{margin-top:6px;}
+  .modal__optlbl{flex:1 1 auto;min-width:0;}
+  .modal__optfig{flex:none;display:flex;align-items:center;}
+  .modal__optfig svg{display:block;height:20px;width:auto;max-width:140px;}
+  .modal__optfig svg *{fill:currentColor;stroke:currentColor;}
+  .modal__optfig svg g[stroke]{stroke-width:2;}          /* stems */
+  .modal__opt--timesig{min-height:38px;}
+  .modal__opt--timesig svg{display:block;height:30px;width:auto;margin:0 auto;}
+  .modal__opt--timesig svg *{fill:currentColor;stroke:none;}
+
+  /* ===== BEATS — full width, on the background, no panel, flat (no shadow) ===== */
+  .metro-lights{width:100%;display:flex;flex-direction:column;gap:12px;}
+  .metro-lights .main-row{display:grid;gap:12px;width:100%;}
+  .metro-light{
+    height:clamp(42px,7vh,60px);border:2px solid #000;border-radius:14px;cursor:pointer;
+    background:var(--blue-darker);transition:transform .07s ease,background .08s ease;
+    -webkit-tap-highlight-color:transparent;
+  }
+  /* flat colors (no gradients): normal = orange · accent = purple · rest/silence = dark blue */
+  .metro-light.is-beat{background:var(--orange);}
+  .metro-light.is-accent{background:var(--purple);}
+  .metro-light.is-muted{background:var(--blue-darker);}
+  .metro-light.is-hit{background:#fff;transform:translateY(-2px) scale(1.015);transition:none;}
+
+  /* sub-lights — full width, on the background. */
+  .metro-sublights{width:100%;display:flex;flex-direction:column;gap:10px;}
+  .metro-sublights[hidden]{display:none;}
+  /* FILL THE WIDTH, AND WRAP — NEVER SCROLL.
+
+     Three goes at "the pills are the wrong size" got here, and the constraints from all three hold:
+       1. they must not shrink to slivers  (Anthony, 2026-08-06: "they get way too small sometimes")
+       2. they must not scroll sideways    (2026-08-07: "only fit the row they can and wrap")
+       3. they must reach END TO END       (2026-08-07: "they should change size depending on how many
+                                            there are, but they should try to reach end to end")
+     (3) is what rules out the fixed width (2) was built on: a fixed pill can only be centred with slack
+     down both sides. So the pills STRETCH — every row is a grid of equal columns filling 100% — and
+     `--pill-min` is now a wrapping THRESHOLD rather than the drawn size: script.js works out how many
+     fit at that floor, balances the rows, and hands each row its column count. Below the floor it wraps
+     instead of shrinking, which is (1) and (2) intact.
+
+     The column counts are set inline by renderSubLights/layoutSubLights — see script.js. */
+  .metro-sublights{--pill-min:20px;}
+  /* One group per BEAT in a multi-beat sequence step. The gap BETWEEN beats has to be clearly larger
+     than the gap between partials INSIDE a beat, or 4 beats of triplets just reads as 12 pills in a row
+     and you can't tell which beat you're accenting. */
+  .sub-row{display:grid;width:100%;column-gap:16px;}
+  .sub-row--beats{column-gap:30px;}
+  /* a single beat has no beat-groups, so its pills sit straight in the row and want the INNER spacing */
+  .sub-row--single{column-gap:8px;}
+  /* Dense = many partials per beat (32nds and up). Tighter gaps and a lower floor fit more per line
+     before it wraps; the pills stay tappable because the floor is a real width, not a fraction. */
+  .sub-row--dense{column-gap:14px;--pill-min:13px;}
+  .sub-row--dense.sub-row--single{column-gap:4px;}
+  .sub-row--dense .sub-group{column-gap:4px;}
+  .sub-row--dense .sub-light{border-width:2px;border-radius:7px;}
+  .sub-group{display:grid;column-gap:8px;}
+  .sub-light{
+    /* min-width:0 so a grid column can shrink it below its intrinsic size instead of overflowing */
+    width:auto;min-width:0;
+    height:clamp(20px,3vh,30px);border:2px solid #000;border-radius:10px;cursor:pointer;
+    background:var(--blue-darker);transition:transform .07s ease,background .08s ease;-webkit-tap-highlight-color:transparent;
+  }
+  .sub-light.is-on{background:var(--orange);}
+  .sub-light.is-accent{background:var(--purple);}
+  .sub-light.is-muted{background:var(--blue-darker);}
+  .sub-light.is-hit{background:#fff;transition:none;}
+
+  /* ===== rhythm sequence chips =====
+     One chip per step. Each shows the step's own rhythm figure (rendered through the SAME subdivision
+     icon builder the settings button uses, so a step looks like what it will sound like) plus "xN" =
+     how many beats it lasts. `is-sel` = the step the picker/pills are editing; `is-playing` = the step
+     sounding right now. Those are deliberately DIFFERENT states: you can study one step while another
+     plays, and the pills follow the selection, not the playhead. */
+  .metro-seq{width:100%;display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
+  .metro-seq[hidden]{display:none;}
+  .seq-chip{
+    display:flex;align-items:center;gap:6px;padding:6px 10px;cursor:pointer;
+    border:2px solid #000;border-radius:12px;background:var(--blue-darker);color:#fff;
+    font:700 .8rem/1 Ubuntu,Arial,sans-serif;-webkit-tap-highlight-color:transparent;
+  }
+  .seq-chip.is-sel{background:var(--purple);}
+  /* an outline, not a fill: the playing step has to be legible ON TOP of the selected state, since the
+     same chip is very often both */
+  .seq-chip.is-playing{box-shadow:0 0 0 3px var(--orange);}
+  .seq-chip__icon{display:block;height:22px;}
+  .seq-chip__icon svg{height:22px;width:auto;display:block;}
+  /* VexFlow draws the figure in black, which is nearly invisible on these dark chips — repaint the
+     noteheads/beams/tuplet numbers white so the rhythm is actually readable at chip size */
+  .seq-chip__icon svg path,.seq-chip__icon svg rect{fill:#fff;stroke:#fff;}
+  .seq-chip__icon svg text{fill:#fff;}
+  .seq-chip__n{opacity:.85;font-size:.72rem;}
+  .seq-chip__x{border:none;background:transparent;color:inherit;cursor:pointer;font:inherit;
+    opacity:.7;padding:0 0 0 2px;line-height:1;}
+  .seq-chip__x:hover{opacity:1;}
+  .seq-add{
+    border:2px dashed rgba(255,255,255,.5);background:transparent;color:#fff;cursor:pointer;
+    border-radius:12px;padding:7px 12px;font:700 .8rem/1 Ubuntu,Arial,sans-serif;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .seq-add:hover{border-color:#fff;}
+  .seq-add[disabled]{opacity:.35;cursor:default;}
+
+  /* ===== NUMBER + steppers — centered on the background (no shadow) ===== */
+  .metro-display{display:flex;align-items:center;justify-content:center;gap:clamp(12px,2.5vw,22px);
+    margin-inline:auto;width:max-content;max-width:100%;}
+  .metro-display > *{flex:none;}
+  .metro-stack{display:flex;flex-direction:column;gap:8px;}
+  .stepbtn{
+    width:clamp(48px,7vw,64px);height:clamp(36px,5vh,46px);border:2px solid #000;border-radius:12px;
+    background:var(--orange);color:#fff;font-family:inherit;font-weight:700;font-size:1.05rem;cursor:pointer;
+    transition:transform .12s ease,filter .12s ease;-webkit-tap-highlight-color:transparent;
+  }
+  @media (hover:hover){ .stepbtn:hover{filter:brightness(.9);} }
+  .stepbtn:active{filter:brightness(.95);}
+  /* BLOCK layout (not flex): a flex column with align-items:center collapses the number's box so
+     text-align/width:100% stop working and the digits overflow into the steppers. Block + a definite
+     width + text-align:center centers the number reliably. NO vw in font-size (breaks intrinsic sizing). */
+  .metro-bpm{display:block;width:270px;flex:none;text-align:center;line-height:1;}
+  /* class is .bignum NOT .num — the shared theme's .num utility sets max-width:96px, which was
+     capping this box to 96px and breaking centering (digits only showed via nowrap overflow). */
+  .metro-bpm .bignum{display:block;font-weight:700;font-size:8.2rem;color:#fff;white-space:nowrap;
+    font-variant-numeric:tabular-nums;letter-spacing:-2px;}
+  .metro-bpm .unit{display:block;font-weight:700;font-size:.82rem;letter-spacing:.3em;text-transform:uppercase;color:var(--muted);margin-top:6px;}
+
+  .metro-meta{color:var(--muted);font-weight:600;font-size:.92rem;text-align:center;margin-top:-2px;}
+  .metro-meta b{color:#fff;}
+
+  /* ===== CONTROL CARD — one teal panel, black border, NO shadow ===== */
+  /* padding unified at 18px 20px across ALL .metro-card panels (main control + both trainers) */
+  .metro-card{display:flex;flex-direction:column;gap:14px;padding:16px;box-shadow:none;}
+  /* settings dropdowns (Time Signature / Subdivision / Repeat / Sound) = orange */
+  .metro-card .control:not(.num){background:var(--orange);}
+  @media (hover:hover){ .metro-card .control:not(.num):hover{background:var(--orange-deep);} }
+
+  /* ===== TRAINER TABS — two compact icon+toggle boxes side by side (Tempo=purple, Gap=orange).
+     Exclusive: turning one ON turns the other OFF (see setTrainer/setGap in script.js), so only
+     one settings panel is ever open beneath the row. ===== */
+  /* Tabs size to their CONTENT, not to equal thirds. Presets carries no ON/OFF switch and a short word,
+     so an equal third left ~115px of it empty while "Bump Tempo" was still being clipped to "Bump Te…".
+     Presets takes only what it needs; the two trainer tabs share everything left over. The row is also a
+     size container so the labels can be dropped WHOLESALE when they stop fitting — Anthony would rather
+     see a bare icon than truncated text. (2026-07-21) */
+  .tt-tabs{display:flex;gap:8px;container-type:inline-size;}
+  .tt-tab{flex:0 1 auto;min-width:0;display:flex;align-items:center;justify-content:space-between;
+    gap:8px;padding:12px 14px;border:2px solid #000;border-radius:var(--rad);box-shadow:none;}
+  .tt-tab--teal,.tt-tab--orange{flex:1 1 auto;}   /* the two that hold a switch get the spare width */
+  .tt-tab--purple{background:var(--purple);}
+  .tt-tab--orange{background:var(--orange);}
+  .tt-tab--teal{background:var(--blue-deep);}
+  /* icon + label + chevron group (left side, a BUTTON that opens the settings panel) vs the ON/OFF switch
+     (right side). The button flexes to fill so the whole left region is a click target; the switch stays
+     pinned right. Clicking the button expands/collapses; the switch activates/deactivates — separately. */
+  .tt-tab-info{flex:1 1 auto;display:flex;align-items:center;gap:8px;min-width:0;cursor:pointer;
+    background:none;border:0;padding:0;margin:0;font:inherit;color:#fff;text-align:left;
+    -webkit-tap-highlight-color:transparent;}
+  .tt-tab-ic{flex:0 0 auto;width:36px;height:36px;color:#fff;display:flex;align-items:center;justify-content:center;}
+  .tt-tab-ic svg{display:block;width:100%;height:100%;}
+  /* the ellipsis is a safety net only — the container query below drops the label before it can trigger */
+  .tt-tab-lbl{font-weight:700;font-size:.95rem;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  /* Not enough room for all three words: go icon-only rather than clip. Threshold = the widest the row
+     can be while every label still renders in full, measured in-browser (see the tab-fit check). */
+  @container (max-width:719px){   /* measured: all three labels render in full from 715px up */
+    .tt-tab-lbl{display:none;}
+    .tt-tab-info{justify-content:center;}
+  }
+  /* A 360px-wide phone (most Samsungs report exactly that) is the tight one: even icon-only, the fixed
+     36px icon + 18px chevron + 72px switch cannot fit a third of the row, so the icon was pushed out
+     past the tab's rounded border and the page itself scrolled sideways. Shrink the fixed parts.
+     The chevron STAYS (Anthony, 2026-07-22): it is the thing that says the tab opens a panel, and it is
+     the one part of this row that animates, so dropping it on phones was exactly backwards. Everything
+     else gives up a few px to pay for its 14. (Anthony, 2026-07-22) */
+  /* NOTE the .tt-tab prefixes: the base .tt-tab-chev / .tt-tab-ic rules are declared BELOW this block,
+     so a bare selector here has equal specificity and LOSES to them. That is why an earlier attempt at
+     shrinking the chevron silently did nothing (display:none worked only because the base rule sets no
+     display). Keep these more specific than the base rules. */
+  @container (max-width:430px){
+    .tt-tabs{gap:6px;}
+    .tt-tab{padding:10px 6px;gap:4px;}
+    .tt-tab .tt-tab-ic{width:24px;height:24px;}
+    .tt-tab .tt-tab-info{gap:4px;}
+    .tt-tab .tt-tab-chev{width:14px;height:14px;}
+    .tt-toggle .track{width:48px;padding:4px;}
+    .tt-toggle .tlbl{font-size:.62rem;letter-spacing:0;}
+    .tt-toggle .track::after{top:4px;left:4px;height:calc(100% - 8px);width:calc((100% - 8px) / 2);}
+  }
+  /* 320px, the narrowest phone anyone still uses, once the app-wide 12px gutter took 4px a side off the
+     row: the icon was pushed 2px past its tab's rounded border. Give back those 4px. */
+  @container (max-width:340px){
+    .tt-tabs{gap:4px;}
+    .tt-tab{padding:10px 4px;gap:3px;}
+    .tt-tab .tt-tab-ic{width:22px;height:22px;}
+    .tt-tab .tt-tab-info{gap:3px;}
+    .tt-toggle .track{width:44px;}
+  }
+  /* FREEMIUM: a locked trainer tab / picker row keeps its colour but reads as unavailable — desaturated
+     with a padlock. Deliberately visible rather than removed: a lock you can see is what prompts the
+     upgrade, while a missing control just makes the tool look thin. (Anthony, 2026-07-31)
+     The padlock is the app's OWN lock mark (the same rect+shackle as the Playalongs auto-scroll follow
+     button and the private-upload icon), drawn as an inline SVG background rather than the 🔒 emoji so it
+     matches everywhere and doesn't change shape with the platform's emoji font. */
+  :root{
+    --lock-w:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='4' y='11' width='16' height='10' rx='2'/%3E%3Cpath d='M8 11V7a4 4 0 0 1 8 0v4'/%3E%3C/svg%3E");
+  }
+  .tt-tab--locked{position:relative;filter:grayscale(.55) brightness(.85);}
+  .tt-tab--locked::after{content:"";position:absolute;top:4px;right:6px;width:12px;height:12px;
+    background:var(--lock-w) center/contain no-repeat;filter:drop-shadow(0 1px 1px rgba(0,0,0,.5));}
+  .tt-tab--locked .tt-toggle{opacity:.6;}
+  /* The lock leads the row rather than trailing it: these rows already end in a rhythm figure that runs to
+     the right edge, so a trailing badge would be pushed out of the row and clipped. */
+  .modal__list li.modal__opt--locked{opacity:.6;filter:grayscale(.6);}
+  .modal__list li.modal__opt--locked::before{content:"";flex:0 0 auto;width:13px;height:13px;margin-right:8px;
+    background:var(--lock-w) center/contain no-repeat;}
+  /* A time-signature cell centres one big glyph, so an in-flow badge would stretch the cell and land
+     under it. Pin it to the corner instead. */
+  .modal__list li.modal__opt--timesig.modal__opt--locked{position:relative;}
+  .modal__list li.modal__opt--timesig.modal__opt--locked::before{position:absolute;top:7px;right:9px;margin:0;}
+
+  /* chevron hints the tab opens a panel; rotates when expanded */
+  .tt-tab-chev{flex:0 0 auto;width:18px;height:18px;color:#fff;opacity:.85;transition:transform .18s ease;}
+  .tt-tab-chev svg{display:block;width:100%;height:100%;}
+  .tt-tab-info[aria-expanded="true"] .tt-tab-chev{transform:rotate(180deg);}
+  @media (hover:hover){ .tt-tab-info:hover .tt-tab-chev{opacity:1;} }
+  /* ON/OFF switch — same design as the Playalongs Bump/Randomize "Auto" toggle: a track with both
+     OFF/ON labels always visible and a white pill that slides to the active side. */
+  .tt-toggle{flex:0 0 auto;display:inline-flex;align-items:center;cursor:pointer;user-select:none;
+    -webkit-tap-highlight-color:transparent;}
+  .tt-toggle input{position:absolute;opacity:0;width:0;height:0;-webkit-tap-highlight-color:transparent;}
+  .tt-toggle .track{width:72px;height:var(--ctrl-h);border-radius:var(--rad-sm);position:relative;
+    display:flex;align-items:center;overflow:hidden;padding:5px;box-sizing:border-box;
+    background:rgba(0,0,0,.28);border:var(--b-thin);}
+  .tt-toggle .tlbl{position:relative;z-index:1;flex:1;text-align:center;font-size:.78rem;font-weight:700;
+    letter-spacing:.02em;color:#fff;pointer-events:none;transition:color .15s ease;}
+  .tt-toggle .track::after{content:"";position:absolute;z-index:0;top:5px;left:5px;margin:0;
+    height:calc(100% - 10px);width:calc((100% - 10px) / 2);border-radius:9px;background:#fff;
+    transition:transform .15s ease;}
+  .tt-toggle input:checked + .track::after{transform:translateX(100%);}
+  .tt-toggle input:not(:checked) + .track .tlbl:first-child{color:#1a1320;}
+  .tt-toggle input:checked + .track .tlbl:last-child{color:#1a1320;}
+
+  /* ===== TRAINER PANEL — the settings card that opens beneath the tabs, colored to match whichever
+     trainer is open (.panel.purple / .panel.orange come from the shared theme). ===== */
+  /* trainer/preset panels sit transparent on the dark page (like the SR Lab / Playalongs panels) — no card bg */
+  .tt-panel{gap:10px;padding:6px 0;background:transparent;box-shadow:none;}
+  .tt-panel[hidden]{display:none;}
+  .tt-desc{margin:0;color:#fff;font-size:.86rem;line-height:1.4;}
+  .tt-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  /* Tempo Trainer has 4 fields — one row instead of 2x2 cuts the card's expanded height roughly in half */
+  .tt-grid--4{grid-template-columns:repeat(4,1fr);}
+  .tt-field{display:flex;flex-direction:column;gap:4px;min-width:0;}
+  .tt-lab{font-size:.74rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);}
+  .tt-num{height:var(--ctrl-h);box-sizing:border-box;background:#fff;color:#1a1320;border:2px solid #000;
+    border-radius:12px;text-align:center;font:inherit;font-weight:700;font-size:1.05rem;padding:0 8px;width:100%;}
+  .tt-num:focus{outline:none;}
+  /* grayed placeholder when a field is cleared — shows the value that empty falls back to (like the
+     Playalongs loop / randomize fields). opacity:1 so Firefox doesn't further fade it. */
+  .tt-num::placeholder{color:#7a7283;opacity:1;font-weight:700;}
+  /* status readout — single line (value + muted uppercase unit, inline); collapses away when empty
+     (trainer's on but transport isn't running yet) instead of reserving blank space. */
+  .tt-status{display:flex;align-items:baseline;gap:6px;white-space:nowrap;}
+  .tt-status:empty{display:none;}
+  .tt-stat-val{font-weight:700;font-size:1.05rem;color:#fff;font-variant-numeric:tabular-nums;}
+  .tt-stat-unit{font-weight:700;font-size:.68rem;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);}
+
+  /* transport: Start | tempo slider | BPM box | Tap */
+  .ctl-transport{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  .ctl-transport .rangewrap{flex:1 1 180px;min-width:0;}
+  .ctl-transport .cta{flex:0 0 auto;height:var(--ctrl-h);border-radius:12px;}
+  #playBtn{background:var(--purple);min-width:76px;height:52px;padding:0;}   /* 76×52 — matches the Playalongs/SR play button (was 88×46) */
+  #playBtn .ico{width:26px;height:26px;}   /* as big (relatively) as the Playalongs/SR play icons — Anthony 2026-07-25 */
+  #tapBtn{background:var(--purple);font-weight:700;letter-spacing:.06em;}   /* purple TAP */
+  /* tempo box = a note-value glyph ("♩ =" / "♩. =" / "♪ =", the beat the number counts) + the editable
+     number, styled exactly like the Playalongs Engine V2 dock tempo mark. */
+  .bpmbox{flex:0 0 auto;height:var(--ctrl-h);box-sizing:border-box;background:#fff;color:#1a1320;
+    border:2px solid #000;border-radius:12px;padding:0 10px;display:flex;align-items:center;justify-content:center;gap:5px;}
+  .bpmnote{font-weight:700;font-size:1.15rem;line-height:1;color:#1a1320;white-space:nowrap;}   /* the glyph + "=" */
+  /* dotted-note augmentation dot: a drawn circle (device-consistent) sitting at the notehead's height,
+     replacing the literal "." which rendered oversized on mobile. Sized in em so it tracks the glyph. */
+  .bpmnote .tempo-dot{display:inline-block;width:.16em;height:.16em;border-radius:50%;
+    background:currentColor;vertical-align:.02em;margin:0 .04em 0 .05em;}
+  .bpminput{width:38px;box-sizing:border-box;background:transparent;color:#1a1320;border:none;
+    text-align:center;font:inherit;font-weight:700;font-size:1rem;padding:0;-moz-appearance:textfield;}
+  .bpminput:focus{outline:none;}
+  .bpminput::-webkit-inner-spin-button,.bpminput::-webkit-outer-spin-button{-webkit-appearance:none;margin:0;}
+  #tempoFill{background:var(--purple);}
+  /* tempo slider = the SAME bar as the Playalongs Engine V2 dock slider (thicker track, proportional knob),
+     scoped to .ctl-transport so nothing else changes. Desktop: 22px track / 31px thumb. */
+  .ctl-transport .rangewrap{height:22px;}
+  .ctl-transport .rangetrack{height:22px;border-radius:var(--rad);}
+  .ctl-transport #tempoSlider{height:22px;}
+  .ctl-transport #tempoSlider::-webkit-slider-runnable-track{height:22px;}
+  .ctl-transport #tempoSlider::-moz-range-track{height:22px;}
+  .ctl-transport #tempoSlider::-webkit-slider-thumb{width:31px;height:31px;margin-top:-4.5px;}
+  .ctl-transport #tempoSlider::-moz-range-thumb{width:31px;height:31px;}
+
+  /* volume rows: label | slider (grows) | value */
+  .volrow2{display:flex;align-items:center;gap:14px;}
+  .volrow2 .vlab{flex:0 0 auto;min-width:104px;font-weight:700;font-size:.86rem;letter-spacing:.02em;color:#fff;}
+  .volrow2 .rangewrap{flex:1 1 auto;min-width:0;}
+  .volrow2 .vval{flex:0 0 auto;min-width:44px;text-align:right;font-weight:700;font-size:.86rem;color:#fff;font-variant-numeric:tabular-nums;}
+  #mainVolFill,#subVolFill{background:var(--orange);}
+
+  /* settings row: Time Signature | Subdivision | Sound — ONE row of icon buttons. Icon communicates
+     the category at a glance (a time-sig glyph reads as time signature, a rhythm glyph reads as
+     subdivision, etc). On desktop each button gets a caption ABOVE it — OUTSIDE the button, anchored to
+     its top-left corner (not centered, not inside) — so the box itself stays a clean icon-only button
+     and the label reads more like a toolbar caption. Mobile drops the caption entirely (icon-only). */
+  .ctl-settings{display:flex;gap:10px;align-items:flex-end;}   /* flex-end: buttons stay level even if a caption wraps to a slightly different height */
+  .ctl-item{flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:4px;}
+  .ctl-item--wide{flex:1.5 1 0;}   /* Subdivision holds a multi-note rhythm figure, unlike the other two */
+  /* matches the shared .field>label style used by the Playalongs tool (rdm-theme.css) */
+  .ctl-lbl{font-size:.74rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);
+    text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-left:2px;}
+  .ctl-settings .control.icon-only{width:100%;height:var(--ctrl-h);padding:0;   /* 46px — matches every other control across the tools (was 56) */
+    display:flex;align-items:center;justify-content:center;}
+  .ctl-settings .control.icon-only::after{content:none;}   /* no dropdown chevron — pure icon buttons */
+  /* ===== Presets (your saved click setups) — same heights as the SR Lab presets (--ctrl-h) ===== */
+  /* row-gap 4px (not 8) + no label margin, so the label sits 4px above its button — the same gap the
+     Bump Tempo and Gap Trainer fields use. It was 10px here, which made this panel 6px taller than the
+     other two and the spacing visibly inconsistent. Column gap stays 8px for the preset chips. */
+  .metro-presets{display:flex;flex-wrap:wrap;align-items:center;gap:3px 8px;}   /* 3px row gap = .tt-field's label-to-control gap */
+  /* Same caption treatment as Bump's and Gap's .tt-lab, so the three trainer panels read as one family:
+     colour was rgba(255,255,255,.6) against their var(--muted), which made this one look faded.
+     (Anthony, 2026-07-22) */
+  .metro-presets-lbl{width:100%;font-size:.74rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin-bottom:0;}
+  /* matches .tt-num, the field Bump and Gap show in this slot: same 12px corners and same 1.05rem, so
+     the button does not sit a size and a shape apart from its neighbours */
+  .metro-preset-save{height:var(--ctrl-h);padding:0 16px;border:2px solid #000;border-radius:12px;background:var(--purple);color:#fff;font:inherit;font-weight:700;font-size:1.05rem;text-shadow:0 1px 1px rgba(0,0,0,.3);cursor:pointer;}
+  /* a saved preset sits beside the save button, so it takes the same corners and size */
+  .metro-preset-chip{display:inline-flex;align-items:center;gap:6px;height:var(--ctrl-h);padding:0 6px 0 12px;border:2px solid #000;border-radius:12px;background:var(--purple);color:#fff;font:inherit;font-weight:700;font-size:1.05rem;}
+  .metro-preset-chip button{border:none;background:none;color:inherit;cursor:pointer;font:inherit;font-weight:700;padding:0;}
+  .metro-preset-chip .mp-load{max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .metro-preset-chip .mp-del{width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.28);font-size:1.05rem;line-height:1;}
+  @media (hover:hover){ .metro-preset-chip .mp-del:hover{background:rgba(0,0,0,.5);} .metro-preset-save:hover{background:var(--purple-deep);} }
+  .subIcon,.soundIcon,.tsIcon{color:#fff;}
+  .subIcon,.soundIcon,.tsIcon{display:flex;align-items:center;justify-content:center;}
+  .soundIcon svg{display:block;width:36px;height:36px;}
+  /* Subdivision icon = the REAL VexFlow notation (same renderer as the sheet card), rendered bare (no clef/
+     timesig/staff lines) then cropped tight + recolored white. Height-locked; width follows the rhythm. */
+  .subIcon svg{display:block;height:28px;width:auto;max-width:100%;}
+  /* VexFlow draws noteheads/beams/numbers as FILLED glyphs but STEMS as STROKED lines — recolor BOTH white
+     (a stroke:none here would erase the stems). Bump the stem stroke so it reads at icon scale. */
+  .subIcon svg *{fill:#fff;stroke:#fff;}
+  .subIcon svg g[stroke]{stroke-width:2;}   /* stems (the only stroked group) — thicker so they're clearly visible */
+  .subIcon svg text{fill:#fff;}             /* tuplet numbers */
+  #subdivBtn{padding:0 12px;}   /* left/right breathing room so the rhythm figure isn't edge-to-edge */
+  /* Time Signature icon = the REAL VexFlow time-signature glyph (same music font as the staff), rendered
+     bare then cropped + recolored white. Height-locked, stacked N/D — no serif fallback font anymore. */
+  .tsIcon svg{display:block;height:36px;width:auto;max-width:100%;}
+  .tsIcon svg *{fill:#fff;stroke:none;}   /* time-sig digits are filled glyphs (no stems) */
+
+  /* uniform button feel — NO shadows */
+  .cta,button.control,.stepbtn{transition:transform .12s ease,filter .12s ease;box-shadow:none;}
+  @media (hover:hover){ .cta:hover,button.control:hover,.stepbtn:hover{filter:brightness(.9);} }
+  .cta:active,button.control:active,.stepbtn:active{filter:brightness(.96);}
+  /* Play button must NOT darken on press (Anthony) */
+  #playBtn:active{filter:none;}
+
+  /* No tap-highlight rectangle on touch, and no focus-ring rectangle on a mouse click (keyboard tabbing
+     still shows a ring via :focus-visible). Covers every button + the picker rows. */
+  button,.control,.cta,.stepbtn,.modal__close,.modal__list li,.tt-toggle,.tt-toggle input{-webkit-tap-highlight-color:transparent;}
+  button:focus:not(:focus-visible),.control:focus:not(:focus-visible),.cta:focus:not(:focus-visible){outline:none;}
+  /* NO RING ON A SLIDER, EVER — see the matching note in Playalongs/index.html. Pointer focus was
+     already ringless; any keypress after a drag promoted the slider to :focus-visible and the browser
+     painted its default white ring. (Anthony, 2026-08-07) */
+  input[type=range]:focus,input[type=range]:focus-visible{outline:none;box-shadow:none;}
+
+  /* Picker rows change color INSTANTLY (no transition): the search box rebuilds the list on every keystroke,
+     and a background/color transition made the row under the cursor (and the active row) flicker as it
+     re-animated each rebuild. Scoped to this tool's inline CSS, so Playalongs' picker keeps its fade. */
+  .modal__list li{transition:none;}
+
+  /* ===== Keyboard-shortcuts button (in the transport row) + popup — copied from the Playalongs engine ===== */
+  .kbdbtn{flex:0 0 auto;width:var(--ctrl-h);height:var(--ctrl-h);display:flex;align-items:center;justify-content:center;
+    border:2px solid #000;border-radius:12px;background:var(--purple);color:#fff;cursor:pointer;transition:transform .12s ease,filter .12s ease;}
+  .kbdbtn .ico{width:22px;height:22px;}
+  @media (hover:hover){ .kbdbtn:hover{transform:translateY(-1px);filter:brightness(.9);} }
+  @media (hover:none) and (pointer:coarse){ .kbdbtn{display:none;} }   /* touch = no keyboard */
+
+  .kbdhelp{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55);padding:20px;
+    top:var(--vvo,0);bottom:auto;height:var(--vvh,100dvh);}   /* matches the Playalongs kbdhelp exactly */
+  /* 12px on phones = the ONE shared popup edge gap (see .modal in rdm-theme.css) */
+  @media (max-width:699px){ .kbdhelp{padding:12px;} }
+  .kbdhelp[hidden]{display:none;}
+  /* animate the keyboard popup exactly like the shared .modal (same keyframes from rdm-theme.css) */
+  .kbdhelp.is-open{animation:rdmOverlayIn .18s ease-out;}
+  .kbdhelp.is-open .kbdhelp__panel{animation:rdmPanelIn .26s cubic-bezier(.2,.9,.25,1.25);}
+  .kbdhelp.is-closing{animation:rdmOverlayOut .16s ease-in forwards;}
+  .kbdhelp.is-closing .kbdhelp__panel{animation:rdmPanelOut .16s ease-in forwards;}
+  /* popup = a brand-purple card (black border), white keycaps, white/tan text — matches Playalongs */
+  .kbdhelp__panel{width:min(680px,100%);max-height:var(--popup-maxh,88vh);overflow:auto;background:var(--purple);
+    border:2px solid #000;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.5);padding:18px 20px 16px;}
+  .kbdhelp__head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+  .kbdhelp__title{margin:0;font-size:1.15rem;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.35);}
+  .kbdhelp__close{width:34px;height:34px;border:2px solid #000;border-radius:10px;background:var(--purple-deep);
+    color:#fff;font-size:1.3rem;line-height:1;cursor:pointer;transition:background .12s ease,transform .12s ease;}
+  @media (hover:hover){ .kbdhelp__close:hover{background:var(--purple-dim);transform:translateY(-1px);} }
+  .kbdhelp__grid{display:grid;grid-template-columns:1fr 1fr;gap:16px 24px;}
+  .kbdhelp__group h3{margin:0 0 6px;font-size:.72rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#fff;opacity:.9;}
+  .kbdrow{display:flex;align-items:center;gap:10px;padding:3px 0;}
+  .kbdrow__keys{flex:0 0 auto;display:flex;align-items:center;gap:4px;min-width:120px;color:#fff;}
+  .kbdrow__desc{color:#fff;font-size:.9rem;}
+  .kbdhelp kbd{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;padding:0 6px;
+    font-family:inherit;font-size:.74rem;font-weight:700;color:#1a1320;background:#fff;border:2px solid #000;
+    border-radius:6px;box-shadow:0 2px 0 rgba(0,0,0,.45);}
+  .kbdhelp__foot{margin:16px 0 0;color:#fff;opacity:.85;font-size:.82rem;line-height:1.45;}
+  @media (max-width:560px){ .kbdhelp__grid{grid-template-columns:1fr;} }
+
+  /* Narrow phones (a Samsung reports exactly 360px). The tempo readout is a FIXED 250px box with a
+     48px stepper stack either side, which adds up to more than the screen: the steppers hung 5px off
+     both edges and the whole page scrolled sideways. Here the number box takes whatever is left instead
+     of a fixed width, and the steppers shrink a little. (Anthony, 2026-07-22) */
+  @media (max-width:400px){
+    .metro-display{width:100%;gap:8px;}
+    .metro-bpm{width:auto;flex:1 1 0;min-width:0;}
+    .metro-bpm .bignum{font-size:6.2rem;letter-spacing:-3px;}
+    .stepbtn{width:42px;}
+  }
+
+  /* ---- Mobile ---- */
+  @media (max-width:760px){
+    /* Phones had ~370px of unused height (content 441 of 812), so everything scales up to use it:
+       bigger tempo readout, taller controls, more breathing room. recentreShell() then centres what's
+       left over. Deliberately not scaled to the very edge — a trainer panel still has to fit. */
+    .app-shell{gap:10px;padding:12px;max-width:none;--ctrl-h:52px;}
+    .metro-bpm{width:250px;}
+    .metro-bpm .bignum{font-size:7rem;}
+    /* Thumb-sized steppers. The base clamp lands around 48x41 on a phone, under the 44px minimum touch
+       target and too small to hit while you're holding sticks; these match the mobile control height
+       (--ctrl-h:52px) instead. (Anthony, 2026-07-31) */
+    .stepbtn{width:58px;height:52px;font-size:1.05rem;}
+    .metro-stack{gap:10px;}
+    .volrow2 .vlab{min-width:88px;}
+    /* tighter cards + trainer bodies on mobile so the whole page (play button included) fits without
+       scrolling on common phone heights, even with both trainers expanded — no floating/fixed button. */
+    .metro-card{padding:16px;}
+    /* The trainer bodies are TRANSPARENT on a phone (no fill, no border, see .tt-panel) but were still
+       inheriting .metro-card's 16px side padding, which inset their fields 16px from every other row in
+       the tool: the Start/Target/Step/Every boxes stopped short of the beat lights and the control card
+       above them. A card that isn't drawn shouldn't reserve space for itself, so the side padding goes
+       and the fields run the full width. Vertical padding stays, to keep them off the tabs.
+       (Anthony, 2026-07-22) */
+    .tt-card.tt-panel{padding-left:0;padding-right:0;}
+    .tt-card{gap:10px;}
+    .tt-field{gap:3px;}
+
+    /* transport = TWO rows. A 3-col GRID makes Play | BPM | TAP three EXACTLY equal cells (1fr each),
+       and the slider spans all 3 columns on row 2. Grid tracks are equal regardless of content, so the
+       text input can't grab extra width the way it does under flexbox. Keyboard button is desktop-only. */
+    .ctl-transport{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;align-items:center;}
+    .ctl-transport .kbdbtn{display:none;}
+    .ctl-transport > *{min-width:0;}
+    .ctl-transport #playBtn{order:1;padding:0;}
+    .ctl-transport #tempoBox{order:2;width:auto;}
+    .ctl-transport #tapBtn{order:3;padding:0;}
+    /* slider gets EQUAL breathing room above & below, measured from the THUMB edges (thumb overhangs the
+       21px track by 4.5px each side). Target thumb-to-neighbor = 18px (bumped up from 8px so the slider
+       isn't cramped against its neighbors). Above = grid row-gap(8) + margin-top; below = card gap(14, see
+       .metro-card) + margin-bottom. NOTE: margin-bottom must be re-derived (18 - card gap) any time
+       .metro-card's gap changes. */
+    .ctl-transport .rangewrap{order:4;grid-column:1/-1;height:21px;margin-top:10px;margin-bottom:4px;}
+    .ctl-transport .rangewrap{order:4;flex:1 1 100%;height:21px;margin-top:10px;margin-bottom:4px;}
+    /* slider matches the Playalongs mobile dock slider exactly: 21px track / 30px thumb */
+    .ctl-transport .rangetrack{height:21px;}
+    .ctl-transport #tempoSlider{height:21px;}
+    .ctl-transport #tempoSlider::-webkit-slider-runnable-track{height:21px;}
+    .ctl-transport #tempoSlider::-moz-range-track{height:21px;}
+    .ctl-transport #tempoSlider::-webkit-slider-thumb{width:30px;height:30px;margin-top:-4.5px;}
+    .ctl-transport #tempoSlider::-moz-range-thumb{width:30px;height:30px;}
+
+    /* settings row stays ONE row on mobile too (icon-only buttons need much less width than captioned
+       ones) — drop the desktop above-button captions entirely, icon-only, tighten gap/tap targets a touch. */
+    .ctl-settings{gap:8px;}
+    .ctl-settings .control.icon-only{height:46px;}
+    .ctl-lbl{display:none;}
+    .tsIcon svg{height:32px;}
+    .subIcon svg{height:24px;}
+    .soundIcon svg{width:28px;height:28px;}
+
+    /* trainer tabs: the LABEL is now dropped by the row's own container query (it knows the real
+       available width, which a viewport query can't when the app puts a sidebar beside the tool) */
+    .tt-tab-ic{width:32px;height:32px;}
+    /* The "Your setups" caption STAYS here (Anthony, 2026-07-22). Bump and Gap put a caption over every
+       field (START / TARGET / STEP / EVERY, PLAY / SILENT), so dropping it from Presets alone left that
+       panel sitting a line higher than its neighbours. Only the Sight-Reading Lab hides its version,
+       where there is no captioned panel beside it to line up with. */
+  }
+
+  /* Narrow phones again, AFTER the mobile block so it wins: keep the bigger tap target but give back the
+     width, since the steppers and the tempo readout have to share ~360px without the page scrolling
+     sideways. Taller, slightly narrower — the height is what was actually hard to hit. */
+  @media (max-width:400px){
+    .stepbtn{width:56px;}
+  }
+</style>
+  <style id="rdm-embed-transparent">html,body{background:transparent !important;background-color:transparent !important;background-image:none !important;}</style>
+</head>
+<body>
+<div class="app-shell">
+
+  <!-- BEATS — full width, floating on the background, no panel -->
+  <div class="metro-lights" id="metroLights" aria-label="Beat accents (click to change)"></div>
+
+  <!-- NUMBER + steppers, centered -->
+  <div class="metro-display">
+    <div class="metro-stack">
+      <button class="stepbtn" id="bpmDec1" type="button" aria-label="Tempo −1">−1</button>
+      <button class="stepbtn" id="bpmDec5" type="button" aria-label="Tempo −5">−5</button>
+    </div>
+    <div class="metro-bpm">
+      <span class="bignum" id="bpmBig">120</span>
+      <span class="unit">BPM</span>
+    </div>
+    <div class="metro-stack">
+      <button class="stepbtn" id="bpmInc1" type="button" aria-label="Tempo +1">+1</button>
+      <button class="stepbtn" id="bpmInc5" type="button" aria-label="Tempo +5">+5</button>
+    </div>
+  </div>
+  <!-- (The live-notation sheet card was removed — the Subdivision settings button now shows the rhythm.) -->
+
+  <!-- Rhythm SEQUENCE: one chip per step, each showing that step's rhythm icon + how many beats it
+       lasts. Tapping a chip selects it, and the Subdivision picker + accent pills below then edit THAT
+       step. A single ×1 step is exactly the old single-rhythm metronome, so the row hides itself until
+       there is more than one step. -->
+  <div class="metro-seq" id="seqRow" hidden aria-label="Rhythm sequence"></div>
+
+  <!-- Subdivision accent pills: click a partial to cycle normal → accent → mute. -->
+  <div class="metro-sublights" id="subLights" aria-label="Subdivision accents (click to change)"></div>
+
+  <!-- ONE control card -->
+  <section class="metro-card panel blue">
+    <!-- transport -->
+    <div class="ctl-transport">
+      <button class="cta play" id="playBtn" type="button" aria-pressed="false" title="Start / stop (Space)"><svg class="ico ico-fill" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"></path></svg></button>
+      <div class="rangewrap">
+        <div class="rangetrack"><div class="rangefill" id="tempoFill"></div></div>
+        <input type="range" class="slider" id="tempoSlider" min="0" max="300" value="120" step="1" aria-label="Tempo" />
+      </div>
+      <div class="bpmbox" id="tempoBox"><span class="bpmnote" id="tempoNote" aria-hidden="true">&#9833; =</span><input class="bpminput" id="tempoInput" type="text" inputmode="numeric" maxlength="3" value="120" aria-label="Tempo in BPM" /></div>
+      <button class="cta" id="tapBtn" type="button" title="Tap tempo">TAP</button>
+      <button class="kbdbtn" id="kbdBtn" type="button" title="Keyboard shortcuts (press /)" aria-label="Keyboard shortcuts"><svg class="ico ico-stroke" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"></rect><line x1="6" y1="10" x2="6.01" y2="10"></line><line x1="10" y1="10" x2="10.01" y2="10"></line><line x1="14" y1="10" x2="14.01" y2="10"></line><line x1="18" y1="10" x2="18.01" y2="10"></line><line x1="7" y1="14" x2="17" y2="14"></line></svg></button>
+    </div>
+
+    <!-- settings: caption ABOVE each button, anchored top-left, outside the box (desktop only — see CSS) -->
+    <div class="ctl-settings">
+      <div class="ctl-item">
+        <span class="ctl-lbl">Time Signature</span>
+        <button class="control icon-only" id="timeSigBtn" type="button" data-picker="timeSigSel" data-title="Time Signature" aria-label="Time Signature"><span class="tsIcon" aria-hidden="true"></span></button>
+      </div>
+      <div class="ctl-item ctl-item--wide">
+        <span class="ctl-lbl">Subdivision</span>
+        <button class="control icon-only" id="subdivBtn" type="button" data-picker="subdivSel" data-title="Subdivision" aria-label="Subdivision"><span class="subIcon" aria-hidden="true"></span></button>
+      </div>
+      <div class="ctl-item">
+        <span class="ctl-lbl">Sound</span>
+        <button class="control icon-only" id="soundBtn" type="button" data-picker="soundSel" data-title="Click sound" aria-label="Click sound"><span class="soundIcon" aria-hidden="true"><svg viewBox="0 0 24 24" width="36" height="36"><polygon points="4,9 8,9 12,5 12,19 8,15 4,15" fill="currentColor"/><path d="M15.5 8.5a5 5 0 0 1 0 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M18 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span></button>
+      </div>
+    </div>
+  </section>
+
+  <!-- TRAINER TABS — Tempo = purple, Gap = orange, Presets = teal. Click a tab (icon/label) to open its
+       panel; only ONE panel is open at a time (openTrainerPanel in script.js). The Tempo/Gap ON/OFF switches
+       activate their trainer independently, so both trainers can still RUN at once with their panels closed.
+       Presets has no switch — it isn't an activatable mode. -->
+  <div class="tt-tabs">
+    <div class="tt-tab tt-tab--teal">
+      <button type="button" class="tt-tab-info" id="ttExpand" aria-expanded="false" aria-controls="ttBody">
+        <span class="tt-tab-ic" aria-hidden="true"><svg viewBox="0 0 24 24"><g transform="translate(0,3.2)"><path d="M12 4a8 8 0 0 0-8 8h2.5a5.5 5.5 0 0 1 5.5-5.5 5.5 5.5 0 0 1 5.5 5.5H20a8 8 0 0 0-8-8z" fill="currentColor"/><path d="M12 12l3.2-3.2" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/></g></svg></span>
+        <span class="tt-tab-lbl">Bump Tempo</span>
+        <span class="tt-tab-chev" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </button>
+      <label class="tt-toggle"><input type="checkbox" id="ttToggle" aria-label="Activate Bump Tempo" /><span class="track"><span class="tlbl">OFF</span><span class="tlbl">ON</span></span></label>
+    </div>
+    <div class="tt-tab tt-tab--orange">
+      <button type="button" class="tt-tab-info" id="gapExpand" aria-expanded="false" aria-controls="gapBody">
+        <span class="tt-tab-ic" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="2" y="7" width="5" height="10" rx="1.5" fill="currentColor"/><rect x="9.5" y="7" width="5" height="10" rx="1.5" fill="currentColor"/><rect x="17" y="7" width="5" height="10" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/></svg></span>
+        <span class="tt-tab-lbl">Gap Trainer</span>
+        <span class="tt-tab-chev" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </button>
+      <label class="tt-toggle"><input type="checkbox" id="gapToggle" aria-label="Activate Gap Trainer" /><span class="track"><span class="tlbl">OFF</span><span class="tlbl">ON</span></span></label>
+    </div>
+    <div class="tt-tab tt-tab--purple" id="presetsTab" hidden>
+      <button type="button" class="tt-tab-info" id="presetsExpand" aria-expanded="false" aria-controls="presetsBody">
+        <span class="tt-tab-ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></span>
+        <span class="tt-tab-lbl">Presets</span>
+        <span class="tt-tab-chev" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </button>
+    </div>
+  </div>
+
+  <!-- TEMPO TRAINER panel — ramp the tempo by a signed step every N bars (positive = speed up, negative = slow down) -->
+  <section class="metro-card tt-card tt-panel" id="ttBody" hidden>
+    <div class="tt-status" id="ttStatus" aria-live="polite"></div>
+    <div class="tt-grid tt-grid--4">
+      <label class="tt-field"><span class="tt-lab">Start</span><input class="tt-num" id="ttStart" type="text" inputmode="numeric" maxlength="3" value="120" placeholder="120" aria-label="Start tempo" /></label>
+      <label class="tt-field"><span class="tt-lab">Target</span><input class="tt-num" id="ttTarget" type="text" inputmode="numeric" maxlength="3" value="180" placeholder="180" aria-label="Target tempo" /></label>
+      <label class="tt-field"><span class="tt-lab">Step</span><input class="tt-num" id="ttStep" type="text" inputmode="text" maxlength="4" value="+5" placeholder="+5" aria-label="Tempo step, positive up or negative down" /></label>
+      <label class="tt-field"><span class="tt-lab">Every</span><input class="tt-num" id="ttEvery" type="text" inputmode="numeric" maxlength="2" value="4" placeholder="4" aria-label="Bars between steps" /></label>
+    </div>
+  </section>
+
+  <!-- GAP TRAINER panel — play N bars, then go silent M bars (hold time internally), repeat -->
+  <section class="metro-card tt-card tt-panel" id="gapBody" hidden>
+    <div class="tt-status" id="gapStatus" aria-live="polite"></div>
+    <div class="tt-grid">
+      <label class="tt-field"><span class="tt-lab">Play</span><input class="tt-num" id="gapPlay" type="text" inputmode="numeric" maxlength="2" value="1" placeholder="1" aria-label="Bars of clicks" /></label>
+      <label class="tt-field"><span class="tt-lab">Silent</span><input class="tt-num" id="gapGap" type="text" inputmode="numeric" maxlength="2" value="1" placeholder="1" aria-label="Bars of silence" /></label>
+    </div>
+  </section>
+
+  <!-- PRESETS panel — save/load the whole click setup to your account (revealed only when signed in) -->
+  <section class="metro-card tt-card tt-panel" id="presetsBody" hidden>
+    <div class="metro-presets" id="metroPresets"></div>
+  </section>
+
+</div>
+
+<!-- Keyboard shortcuts popup (desktop). Opened by the ⌨ button or the / key; closed by Esc / click-outside. -->
+<div class="kbdhelp" id="kbdHelp" hidden>
+  <div class="kbdhelp__panel" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts">
+    <div class="kbdhelp__head">
+      <h2 class="kbdhelp__title">Keyboard Shortcuts</h2>
+      <button class="kbdhelp__close" id="kbdHelpClose" type="button" aria-label="Close">×</button>
+    </div>
+    <div class="kbdhelp__grid">
+      <section class="kbdhelp__group">
+        <h3>Transport</h3>
+        <div class="kbdrow"><span class="kbdrow__keys"><kbd>Space</kbd> <kbd>K</kbd></span><span class="kbdrow__desc">Start / stop</span></div>
+        <div class="kbdrow"><span class="kbdrow__keys"><kbd>T</kbd></span><span class="kbdrow__desc">Tap tempo</span></div>
+      </section>
+      <section class="kbdhelp__group">
+        <h3>Tempo</h3>
+        <div class="kbdrow"><span class="kbdrow__keys"><kbd>↑</kbd> <kbd>↓</kbd></span><span class="kbdrow__desc">Tempo +1 / −1</span></div>
+        <div class="kbdrow"><span class="kbdrow__keys"><kbd>←</kbd> <kbd>→</kbd></span><span class="kbdrow__desc">Tempo −1 / +1</span></div>
+        <div class="kbdrow"><span class="kbdrow__keys"><kbd>Shift</kbd>+<kbd>↑</kbd><kbd>↓</kbd></span><span class="kbdrow__desc">Tempo ±5</span></div>
+      </section>
+    </div>
+    <p class="kbdhelp__foot">Press <kbd>/</kbd> anytime to open this. Click a beat or sub light to cycle accent → rest.</p>
+  </div>
+</div>
+
+<!-- Hidden <select> elements = source of truth for the pickers -->
+<div hidden aria-hidden="true">
+  <select id="timeSigSel">
+    <option value="2/4">2/4</option>
+    <option value="3/4">3/4</option>
+    <option value="4/4" selected>4/4</option>
+    <option value="5/4">5/4</option>
+    <option value="6/4">6/4</option>
+    <option value="6/8">6/8</option>
+    <option value="9/8">9/8</option>
+    <option value="12/8">12/8</option>
+    <option value="5/8">5/8</option>
+    <option value="7/8">7/8</option>
+  </select>
+  <select id="subdivSel">
+    <option value="1/1" selected>Quarters</option>
+    <option value="4/3">Dotted 8ths</option>
+    <option value="3/2">Quarter Triplets</option>
+    <option value="2/1">8th Notes</option>
+    <option value="9/4">8th 9-lets</option>
+    <option value="5/2">8th 5-lets</option>
+    <option value="8/3">4:3s</option>
+    <option value="3/1">Triplets</option>
+    <option value="10/3">5:3s</option>
+    <option value="7/2">8th 7-lets</option>
+    <option value="4/1">16th Notes</option>
+    <option value="9/2">9-lets</option>
+    <option value="14/3">7:3s</option>
+    <option value="5/1">5-lets</option>
+    <option value="6/1">6-lets</option>
+    <option value="7/1">7-lets</option>
+    <option value="8/1">32nd Notes</option>
+  </select>
+  <select id="soundSel"><option value="beep" selected>Beep</option><option value="click">Click</option><option value="wood">Wood</option><option value="clave">Clave</option><option value="analog">Analog</option></select>
+</div>
+
+<!-- Shared picker modal (teal theme) -->
+<div class="modal theme-teal" id="picker" hidden>
+  <div class="modal__stack">
+    <div class="modal__panel modal__head">
+      <h3 id="pickerTitle">Select</h3>
+      <input class="modal__search" id="pickerSearch" type="text" placeholder="Search…" autocomplete="off" />
+      <button class="modal__close" id="pickerClose" type="button" aria-label="Close">×</button>
+    </div>
+    <div class="modal__panel modal__listwrap">
+      <ul class="modal__list" id="pickerList"></ul>
+    </div>
+  </div>
+</div>
+
+<script src="script.js?v=202608021"></script>
+</body>
+</html>

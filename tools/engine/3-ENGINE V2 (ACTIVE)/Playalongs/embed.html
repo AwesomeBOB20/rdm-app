@@ -1,0 +1,264 @@
+
+<div class="app-shell">
+
+  <!-- hidden holder: app.js still writes the current exercise name/cats here (title shows on the paper) -->
+  <div class="center-head" hidden>
+    <span class="title" id="exerciseTitle">Pick an exercise to begin</span>
+    <span class="chip" id="exerciseCats" hidden></span>
+  </div>
+
+  <!-- TAB BAR -->
+  <nav class="tabbar" role="tablist" aria-label="Controls">
+    <button class="tab tab--orange" data-tab="exercise" type="button" role="tab" aria-selected="false"><svg class="ico ico-stroke" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg> <span class="tab__lbl">Exercise</span></button>
+    <button class="tab tab--teal" data-tab="randomize" type="button" role="tab" aria-selected="false"><svg class="ico ico-stroke" viewBox="0 0 24 24" aria-hidden="true"><polyline points="16 3 21 3 21 8"></polyline><line x1="4" y1="20" x2="21" y2="3"></line><polyline points="21 16 21 21 16 21"></polyline><line x1="15" y1="15" x2="21" y2="21"></line><line x1="4" y1="4" x2="9" y2="9"></line></svg> <span class="tab__lbl">Randomize</span></button>
+    <button class="tab tab--teal" data-tab="bump" type="button" role="tab" aria-selected="false"><svg class="ico ico-stroke" viewBox="0 0 24 24" aria-hidden="true"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg> <span class="tab__lbl">Bump</span></button>
+    <button class="tab tab--purple" data-tab="loop" type="button" role="tab" aria-selected="false"><svg class="ico ico-stroke" viewBox="0 0 24 24" aria-hidden="true"><polyline points="17 1 21 5 17 9"></polyline><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><polyline points="7 23 3 19 7 15"></polyline><path d="M21 13v2a4 4 0 0 1-4 4H3"></path></svg> <span class="tab__lbl">Loop</span></button>
+    <button class="tab tab--purple" data-tab="playlist" type="button" role="tab" aria-selected="false"><svg class="ico ico-stroke" viewBox="0 0 24 24" aria-hidden="true"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg> <span class="tab__lbl">Playlist</span></button>
+    <!-- desktop-only: opens the keyboard-shortcuts popup (also on the ? key). Hidden on mobile/touch. -->
+    <button class="tabbar__kbd" id="kbdBtn" type="button" title="Keyboard shortcuts (press /)" aria-label="Keyboard shortcuts"><svg class="ico ico-stroke" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"></rect><line x1="6" y1="10" x2="6.01" y2="10"></line><line x1="10" y1="10" x2="10.01" y2="10"></line><line x1="14" y1="10" x2="14.01" y2="10"></line><line x1="18" y1="10" x2="18.01" y2="10"></line><line x1="7" y1="14" x2="17" y2="14"></line></svg></button>
+  </nav>
+
+  <!-- ACTIVE PANELS (one open at a time; Exercise open by default) -->
+  <div class="tabpanels collapsed" id="tabpanels">
+
+    <!-- Exercise (ORANGE) -->
+    <section class="tabpanel panel orange" data-panel="exercise">
+      <div class="bar">
+        <div class="field grow-pick">
+          <label>Category</label>
+          <button class="control" id="categoryBtn" type="button"><span class="lbl">All Categories</span></button>
+        </div>
+        <div class="field grow-pick">
+          <label>Exercise</label>
+          <div class="navgroup">
+            <button class="control grow" id="exerciseBtn" type="button"><span class="lbl">Search exercises…</span></button>
+            <button class="cta sm icon pk-add" id="addExerciseBtn" type="button" title="Add your own MusicXML file" aria-label="Add your own exercise" hidden>+</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Randomize Tempo (BLUE) -->
+    <section class="tabpanel panel blue tool" data-panel="randomize">
+      <div class="tool-row">
+        <div class="field field--grow"><label>Reps</label><input class="control num" id="randReps" type="number" min="1" placeholder="1" inputmode="numeric" /></div>
+        <div class="field field--grow"><label>Min BPM</label><input class="control num" id="randMin" type="number" placeholder="—" inputmode="numeric" /></div>
+        <div class="field field--grow"><label>Max BPM</label><input class="control num" id="randMax" type="number" placeholder="—" inputmode="numeric" /></div>
+        <span class="rowbreak" aria-hidden="true"></span>
+        <button class="cta sm orange" id="randomizeBtn" type="button">Randomize Now</button>
+        <div class="field field--auto"><label>Auto</label>
+          <label class="toggle"><input type="checkbox" id="randAuto" /><span class="track"><span class="tlbl">OFF</span><span class="tlbl">ON</span></span></label>
+        </div>
+      </div>
+    </section>
+
+    <!-- Bump Tempo (BLUE) -->
+    <section class="tabpanel panel blue tool" data-panel="bump">
+      <div class="tool-row">
+        <div class="field field--grow"><label>Reps</label><input class="control num" id="bumpReps" type="number" min="1" placeholder="1" inputmode="numeric" /></div>
+        <div class="field field--grow"><label>± BPM</label><input class="control num" id="bumpStep" type="text" placeholder="+5" inputmode="numeric" maxlength="4" /></div>
+        <span class="rowbreak" aria-hidden="true"></span>
+        <button class="cta sm orange" id="bumpBtn" type="button">Bump Now</button>
+        <div class="field field--auto"><label>Auto</label>
+          <label class="toggle"><input type="checkbox" id="bumpAuto" /><span class="track"><span class="tlbl">OFF</span><span class="tlbl">ON</span></span></label>
+        </div>
+      </div>
+    </section>
+
+    <!-- Loop Section (PURPLE) -->
+    <section class="tabpanel panel purple tool" id="loopPanel" data-panel="loop">
+      <!-- IDENTICAL markup to the Sight-Reading Lab's Loop panel (Anthony, 2026-07-26): From bar and
+           To bar are always-visible − [n] + steppers (never a dropdown), then Clear loop, then the
+           Count-off OFF/ON switch. Keep this in step with `Sightreading Lab/index.html`. -->
+      <div class="tool-row loop-bar">
+        <div class="field sr-meas">
+          <label for="loopFrom">From bar</label>
+          <div class="stepper">
+            <button class="sr-step" id="loopFromDown" type="button" aria-label="From bar down">&minus;</button>
+            <input class="control num" id="loopFrom" type="text" inputmode="numeric" maxlength="3" placeholder="1" aria-label="From bar" />
+            <button class="sr-step" id="loopFromUp" type="button" aria-label="From bar up">+</button>
+          </div>
+        </div>
+        <div class="field sr-meas">
+          <label for="loopTo">To bar</label>
+          <div class="stepper">
+            <button class="sr-step" id="loopToDown" type="button" aria-label="To bar down">&minus;</button>
+            <input class="control num" id="loopTo" type="text" inputmode="numeric" maxlength="3" placeholder="1" aria-label="To bar" />
+            <button class="sr-step" id="loopToUp" type="button" aria-label="To bar up">+</button>
+          </div>
+        </div>
+        <button class="cta sm" id="loopClearBtn" type="button" disabled>Clear loop</button>
+        <!-- REPEAT count-off, not the piece's. The start of a piece always counts you in now (engine:
+             _countOffArmed), so this switch is only about hearing it again before every loop repeat —
+             hence the label, and hence it resting OFF. On phones app.js rides this field into the "Loop"
+             flyout, where it keeps the labelled OFF/ON pill — exactly what the Lab does. -->
+        <div class="field sr-togglefield" title="A piece always counts you in at the start. Turn this on to hear the count-off again before every loop repeat.">
+          <label>Count-off</label>
+          <label class="tt-toggle" aria-label="Count-off on loop repeats"><input type="checkbox" id="loopCountOff" aria-label="Count-off on loop repeats, on or off" /><span class="track"><span class="tlbl tlbl--off">OFF</span><span class="tlbl tlbl--on">ON</span></span></label>
+        </div>
+        <!-- How many clicks that count-off gives you: 4 (default) or 2. Same .tt-toggle pill as every
+             other two-state control here, so it reads as one of the family. Unchecked = 4, which keeps
+             the default state the resting state. -->
+        <div class="field sr-togglefield" title="Count-off length: 4 beats or 2 beats">
+          <label>Beats</label>
+          <label class="tt-toggle" aria-label="Count-off length"><input type="checkbox" id="loopCountOffBeats" aria-label="Count-off length: unchecked is 4 beats, checked is 2 beats" /><span class="track"><span class="tlbl tlbl--off">4</span><span class="tlbl tlbl--on">2</span></span></label>
+        </div>
+      </div>
+    </section>
+
+    <!-- Playlist (PURPLE) -->
+    <section class="tabpanel panel purple" data-panel="playlist">
+      <div class="bar">
+        <div class="field grow-pick">
+          <label>Playlist</label>
+          <div class="navgroup">
+            <button class="control grow" id="playlistBtn" type="button"><span class="lbl">Select Playlist</span></button>
+            <button class="cta sm icon pk-add" id="addPlaylistBtn" type="button" title="New playlist" aria-label="New playlist" hidden>+</button>
+          </div>
+        </div>
+        <div class="field grow-pick">
+          <label>Queue</label>
+          <div class="navgroup">
+            <button class="control grow" id="queueBtn" type="button" disabled><span class="lbl">Playlist queue</span></button>
+          </div>
+        </div>
+        <button class="cta sm orange" id="stopPlaylistBtn" type="button" disabled>Stop</button>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- MUSIC -->
+  <section class="sheet" id="sheetWrap">
+        <span class="placeholder" id="sheetPlaceholder" hidden><svg class="ico ico-stroke" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg> Sheet music will appear here</span>
+        <!-- Sheet header: zoom (left) · exercise title with nav chevrons (center) · favorite star (right) -->
+        <!-- Top header: nav chevrons pinned to the card's top corners (3-col grid: they never move as
+             the title width changes); title centered in the middle column. -->
+        <div class="sheet__head" id="sheetHead">
+          <div class="titlenav-group">
+            <button class="titlenav ex" id="titlePrevEx" type="button" title="Previous exercise" aria-label="Previous exercise"><svg class="ico ico-stroke" viewBox="0 0 24 24" aria-hidden="true"><polyline points="15 18 9 12 15 6"></polyline></svg></button>
+            <button class="titlenav hist" id="undoExerciseBtn" type="button" title="Undo random" aria-label="Undo random" disabled><svg class="ico ico-stroke" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5"></path><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"></path></svg></button>
+            <button class="titlenav rep" id="titlePrevRep" type="button" title="Previous rep" aria-label="Previous rep"><svg class="ico ico-stroke" viewBox="0 0 24 24" aria-hidden="true"><polyline points="15 18 9 12 15 6"></polyline></svg></button>
+          </div>
+          <div class="sheet__title" id="sheetTitle">
+            <div class="sheet__titletext" id="sheetTitleText"></div>
+          </div>
+          <div class="titlenav-group">
+            <button class="titlenav rep" id="titleNextRep" type="button" title="Next rep" aria-label="Next rep"><svg class="ico ico-stroke" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
+            <button class="titlenav hist" id="redoExerciseBtn" type="button" title="Redo random" aria-label="Redo random" disabled><svg class="ico ico-stroke" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 14 5-5-5-5"></path><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"></path></svg></button>
+            <button class="titlenav ex" id="titleNextEx" type="button" title="Next exercise" aria-label="Next exercise"><svg class="ico ico-stroke" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
+          </div>
+        </div>
+        <div class="scorewrap"><div id="score"></div></div>
+        <!-- Stickings chart — only shown for the "N Note Stickings" exercises. Pick a pattern to plug it
+             into the fill-in measures (M2 = Same, M4 = Alt). -->
+        <div class="stkchart" id="stkChart" hidden></div>
+        <!-- Bottom footer: zoom (left) · favorite star (right); the loop chip is injected between them -->
+        <div class="sheet__foot" id="sheetFoot">
+          <div class="sizectl" title="Music size (click % to reset)">
+            <button class="sizebtn" id="sizeDown" type="button" aria-label="Smaller music" disabled>&minus;</button>
+            <span class="sizeval" id="sizeVal">100%</span>
+            <button class="sizebtn" id="sizeUp" type="button" aria-label="Bigger music" disabled>+</button>
+          </div>
+          <!-- LOCK last so it lands at the same far-right x as the Sightreading Lab's lock — the one
+               shared foot control stays put when you switch tools (Anthony, 2026-07-16). Fav + random
+               (exercise-specific) sit to its left. -->
+          <div class="sheet__foot-actions">
+            <button class="sheetfav" id="favBtn" type="button" title="Favorite" aria-pressed="false" disabled><svg class="fav-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.6l2.74 5.55 6.12.89-4.43 4.32 1.05 6.1L12 18.7l-5.48 2.88 1.05-6.1L3.14 9.04l6.12-.89L12 2.6z"></path></svg></button>
+            <button class="sheetrand" id="randNowBtn" type="button" title="Pick a random exercise" aria-label="Pick a random exercise" disabled><svg class="ico ico-stroke" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 L21 7 L21 17 L12 22 L3 17 L3 7 Z"></path><path d="M3 7 L12 12 L21 7"></path><path d="M12 12 L12 22"></path><circle cx="11" cy="6" r="0.9" fill="currentColor" stroke="none"></circle><circle cx="13.5" cy="7.3" r="0.9" fill="currentColor" stroke="none"></circle><circle cx="7" cy="13.4" r="0.9" fill="currentColor" stroke="none"></circle><circle cx="8.5" cy="16.2" r="0.9" fill="currentColor" stroke="none"></circle><circle cx="15.6" cy="13.4" r="0.9" fill="currentColor" stroke="none"></circle><circle cx="16.4" cy="16.4" r="0.9" fill="currentColor" stroke="none"></circle></svg><span>Randomize</span></button>
+            <button class="sheetfollow" id="followBtn" type="button" title="Auto-scroll: locked to the music (tap to scroll freely)" aria-pressed="true" aria-label="Toggle auto-scroll follow"><svg class="ico ico-stroke" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg></button>
+          </div>
+        </div>
+      </section>
+
+      <div class="dock" id="dock">
+      <div class="dock__inner">
+        <!-- Row 1: transport + tempo + size, left→right: metronome · rewind · play · tempo bar · BPM · − · zoom% · + (Anthony, 2026-07-25) -->
+        <div class="dock__row">
+          <button class="cta sm dark icon" id="metroBtn" type="button" title="Metronome click" aria-pressed="true" disabled><svg class="ico ico-stroke" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6l3 18H6L9 3Z"></path><path d="M12 20 15 7"></path><path d="M7.5 15h9"></path></svg></button>
+          <button class="cta sm purple icon" id="rewindBtn" type="button" title="Rewind to start" disabled><svg class="ico ico-fill" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 4h2.5v16h-2.5z M19 4v16L9 12z"></path></svg></button>
+          <button class="cta play" id="playBtn" type="button" title="Play / pause" aria-label="Play / pause" disabled><svg class="ico ico-fill" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"></path></svg></button>
+          <div class="dock__tempo">
+            <div class="rangewrap">
+              <div class="rangetrack"><div class="rangefill" id="tempoFill"></div></div>
+              <input type="range" class="slider" id="tempoSlider" min="60" max="240" value="120" step="1" disabled />
+            </div>
+            <span class="dock__bpm" id="tempoLabel"><span class="dock__bpmnote" id="tempoNote" aria-hidden="true">&#9833; =</span><input class="dock__bpminput" id="tempoInput" type="text" inputmode="numeric" maxlength="3" value="120" title="Type a tempo" aria-label="Tempo in BPM" /></span>
+            <button class="cta sm purple" id="tapTempoBtn" type="button" title="Tap tempo — tap in time to set the BPM" aria-label="Tap tempo" disabled>TAP</button>
+          </div>
+        </div>
+        <!-- Row 2: playback progress (orange) -->
+        <div class="progress" id="progressBar">
+          <div class="fill" id="progressFill"><div class="label label--over" id="progressLabelOver" aria-hidden="true">0:00 / 0:00</div></div>
+          <div class="label" id="mainTimeLabel">0:00 / 0:00</div>
+        </div>
+        <!-- Row 3: playlist progress (purple) — only shown while a playlist is running -->
+        <div id="playlistProgressWrap" class="dock__plprogress" hidden>
+          <div class="progress" id="playlistProgress" title="Click to toggle time / percent">
+            <div class="fill" id="playlistFill"><div class="label label--over" id="playlistLabelOver" aria-hidden="true">0:00 / 0:00</div></div>
+            <div class="label" id="playlistLabel">0:00 / 0:00</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+</div>
+
+
+<!-- Picker modal (categories / exercises / playlists / queue) -->
+<div class="modal" id="picker" hidden>
+  <div class="modal__stack">
+    <div class="modal__panel modal__head">
+      <h3 id="pickerTitle">Select</h3>
+      <input class="modal__search" id="pickerSearch" type="text" placeholder="Search…" autocomplete="off" />
+      <button class="modal__close" id="pickerClose" type="button" aria-label="Close">×</button>
+    </div>
+    <div class="modal__panel modal__listwrap">
+      <ul class="modal__list" id="pickerList"></ul>
+    </div>
+  </div>
+</div>
+
+<!-- Keyboard shortcuts popup (desktop). Opened by the ⌨ button or the ? key; closed by Esc / click-outside. -->
+<div class="kbdhelp" id="kbdHelp" hidden>
+  <div class="kbdhelp__panel" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts">
+    <div class="kbdhelp__head">
+      <h2 class="kbdhelp__title">Keyboard Shortcuts</h2>
+      <button class="kbdhelp__close" id="kbdHelpClose" type="button" aria-label="Close">×</button>
+    </div>
+    <div class="kbdhelp__grid">
+      <section class="kbdhelp__group">
+        <h3>Transport</h3>
+        <div class="kbdrow"><span class="kbdrow__keys"><kbd>Space</kbd> <kbd>K</kbd></span><span class="kbdrow__desc">Play / pause</span></div>
+        <div class="kbdrow"><span class="kbdrow__keys"><kbd>J</kbd> <kbd>L</kbd></span><span class="kbdrow__desc">Back / forward one measure</span></div>
+        <div class="kbdrow"><span class="kbdrow__keys"><kbd>Backspace</kbd></span><span class="kbdrow__desc">Rewind to start</span></div>
+      </section>
+      <section class="kbdhelp__group">
+        <h3>Tempo</h3>
+        <div class="kbdrow"><span class="kbdrow__keys"><kbd>↑</kbd> <kbd>↓</kbd></span><span class="kbdrow__desc">Tempo +1 / −1</span></div>
+        <div class="kbdrow"><span class="kbdrow__keys"><kbd>Shift</kbd>+<kbd>↑</kbd><kbd>↓</kbd></span><span class="kbdrow__desc">Tempo ±5</span></div>
+        <div class="kbdrow"><span class="kbdrow__keys"><kbd>T</kbd></span><span class="kbdrow__desc">Tap tempo</span></div>
+      </section>
+      <section class="kbdhelp__group">
+        <h3>Navigation</h3>
+        <div class="kbdrow"><span class="kbdrow__keys"><kbd>←</kbd> <kbd>→</kbd></span><span class="kbdrow__desc">Previous / next exercise</span></div>
+        <div class="kbdrow"><span class="kbdrow__keys"><kbd>1</kbd>–<kbd>5</kbd></span><span class="kbdrow__desc">Switch tab</span></div>
+        <div class="kbdrow"><span class="kbdrow__keys"><kbd>R</kbd> <kbd>X</kbd></span><span class="kbdrow__desc">Random exercise</span></div>
+      </section>
+      <section class="kbdhelp__group">
+        <h3>Toggles &amp; view</h3>
+        <div class="kbdrow"><span class="kbdrow__keys"><kbd>F</kbd></span><span class="kbdrow__desc">Favorite</span></div>
+        <div class="kbdrow"><span class="kbdrow__keys"><kbd>M</kbd></span><span class="kbdrow__desc">Metronome</span></div>
+        <div class="kbdrow"><span class="kbdrow__keys"><kbd>+</kbd> <kbd>−</kbd> <kbd>0</kbd></span><span class="kbdrow__desc">Zoom in / out / reset</span></div>
+      </section>
+    </div>
+    <p class="kbdhelp__foot">In a playlist, <kbd>←</kbd> <kbd>→</kbd> change exercise and <kbd>J</kbd> <kbd>L</kbd> step reps. Press <kbd>/</kbd> anytime to open this.</p>
+  </div>
+</div>
+
+
+
+
+
+
+
