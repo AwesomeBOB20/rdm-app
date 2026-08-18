@@ -75,8 +75,15 @@
       }
       #boot.is-leaving { opacity: 0; pointer-events: none; }
       #boot .b-wrap { display: flex; flex-direction: column; align-items: center; gap: 18px; }
+      /* background-color is LOAD-BEARING, not decoration (Anthony, 2026-08-18: "I want you to put that
+         blue on the splash screen... for that little logo medallion thing").
+         rdm-logo.png is transparent, so without a fill the dimmed brand photo showed through the
+         rounded box and the logo read as murky dark blue — different from the teal square users see on
+         their home screen and in the store. #058890 is --blue-deep, the same teal baked into the app
+         icon, so splash / launcher / store listing now all show the medallion on the same ground. */
       #boot img {
         width: 120px; height: 120px; border-radius: 28px;
+        background-color: #058890;
         border: 3px solid #000; box-shadow: 0 6px 18px rgba(0,0,0,.35);
         animation: b-rise .5s cubic-bezier(.2,.8,.2,1) both;
       }
