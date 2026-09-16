@@ -25,8 +25,12 @@
    ──────────────────────────────────────────────────────────────────────────────────────────────── */
 
 /* Bumping this drops every old cache on activate. It does NOT need bumping per deploy — hashed asset
-   names already handle that — only when the caching RULES below change. */
-const VERSION = "rdm-v1";
+   names already handle that — only when the caching RULES below change.
+   ⚠️ v1 -> v2 (2026-09-15): the shell's brand images became .webp and the .png files were deleted from
+   the server. The names of the CACHES did not change, so without a bump an installed worker would keep
+   its old entries for /rdm-bg.png and /rdm-logo.png forever - URLs that now 404. They are unreferenced,
+   so nothing would break, but they are dead bytes on every member's device and the bump clears them. */
+const VERSION = "rdm-v2";
 const SHELL = `${VERSION}-shell`;
 const ASSETS = `${VERSION}-assets`;
 const KEEP = [SHELL, ASSETS];
@@ -34,7 +38,7 @@ const KEEP = [SHELL, ASSETS];
 /* Enough to paint the app offline. Deliberately short: everything else arrives through the asset rule
    on first use. The brand background and logo are here because the boot splash draws them, and a splash
    with a missing image is worse than a slower one. */
-const SHELL_URLS = ["/", "/index.html", "/rdm-bg.png", "/rdm-logo.png", "/site.webmanifest"];
+const SHELL_URLS = ["/", "/index.html", "/rdm-bg.webp", "/rdm-logo.webp", "/site.webmanifest"];
 
 self.addEventListener("install", (e) => {
   /* addAll is all-or-nothing, so one 404 would fail the whole install and leave the app with no worker
