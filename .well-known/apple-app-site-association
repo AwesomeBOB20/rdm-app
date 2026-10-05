@@ -1,4 +1,15 @@
 {
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["SV6462H5H2.com.rudimentaldrummingmastery.app"],
+        "components": [
+          { "/": "/auth/confirm", "comment": "the sign-up confirm button opens the app when it is installed" },
+          { "/": "/auth/confirm/*" }
+        ]
+      }
+    ]
+  },
   "webcredentials": {
     "apps": ["SV6462H5H2.com.rudimentaldrummingmastery.app"]
   }
