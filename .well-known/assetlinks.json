@@ -1,0 +1,15 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.get_login_creds"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.rudimentaldrummingmastery.app",
+      "sha256_cert_fingerprints": [
+        "4C:4D:07:C2:F2:5D:E9:3D:5F:F8:C5:36:C1:08:74:DB:E4:2A:3C:80:6C:CD:48:11:59:67:C2:0F:87:EC:D8:84",
+        "AE:C0:F8:40:74:76:9F:CB:52:B5:AD:37:C9:E7:03:F7:DC:91:F4:73:F8:9B:2D:19:F5:D7:4C:1A:47:7F:13:1E"
+      ]
+    }
+  }
+]
