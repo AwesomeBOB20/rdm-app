@@ -69,7 +69,7 @@
            dim moved from a 0.40/0.52 gradient to a flat 0.72 and back down to 0.62, and this hard-coded
            copy was never updated, so the boot splash and the app it hands off to were dimmed
            differently. If you change .shell's dim again, update this line too. (Anthony, 2026-07-23) */
-        background-image: linear-gradient(rgba(20,18,22,.62), rgba(20,18,22,.62)), url(/rdm-bg.webp);
+        background-image: linear-gradient(rgba(20,18,22,.62), rgba(20,18,22,.62)), url(/rdm-bg.svg);
         background-size: cover; background-position: center;
         opacity: 1; transition: opacity 420ms ease;
       }
@@ -147,7 +147,7 @@
         } catch (e) { /* storage off / private mode — the default RDM colours above are correct */ }
       })();
     </script>
-    <script type="module" crossorigin src="/assets/index-HNlZxm_F.js"></script>
+    <script type="module" crossorigin src="/assets/index-BuGoMTeO.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-BuJWq5ax.css">
   </head>
   <body>
@@ -158,6 +158,6 @@
         <div class="b-bar" role="status" aria-label="Loading"><i></i></div>
       </div>
     </div>
-    <div id="root"></div>
+    <div id="root"></div>
   </body>
 </html>
