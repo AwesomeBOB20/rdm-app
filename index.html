@@ -94,20 +94,27 @@
         text-shadow: 0 2px 6px rgba(0,0,0,.45);
         animation: b-rise .5s cubic-bezier(.2,.8,.2,1) .06s both;
       }
-      #boot .b-bar {
-        width: 168px; height: 5px; margin-top: 6px; overflow: hidden;
-        border-radius: 999px; background: rgba(255,255,255,.18);
-      }
-      #boot .b-bar i {
-        display: block; width: 42%; height: 100%; border-radius: 999px; background: #06aeb9;
-        animation: b-sweep 1.05s ease-in-out infinite;
-      }
+      /* SONAR (Anthony, 2026-11-06, from the mock-up: "1a is best but can you make it look like a sonar beam where like the animation is slower and each overlap a bit"). Four lights
+         with a small black border, first one purple. Each pings, then fades slowly, and rings outward far enough to reach the next light. A step is 0.7s and a ping lasts about
+         1.3s, so each is still going when the next starts. Opacity and transform only, so they keep time while the app is busy starting up behind them. */
+      #boot .b-dots { display: flex; gap: 16px; height: 18px; margin-top: 10px; align-items: center; }
+      #boot .b-dots i { position: relative; display: block; width: 16px; height: 16px; border-radius: 50%; background: rgba(255,255,255,.18); border: 2px solid #000; }
+      #boot .b-dots i::after, #boot .b-dots i::before { content: ""; position: absolute; inset: -2px; border-radius: 50%; opacity: 0; animation: 2.8s linear infinite; }
+      #boot .b-dots i::after { background: #06aeb9; border: 2px solid #000; animation-name: b-ping; }
+      #boot .b-dots i::before { border: 2px solid #06aeb9; animation-name: b-ring; animation-timing-function: cubic-bezier(.2,.6,.35,1); }
+      #boot .b-dots i:nth-child(1)::after { background: #96318d; }
+      #boot .b-dots i:nth-child(1)::before { border-color: #d276ca; }
+      #boot .b-dots i:nth-child(2)::after, #boot .b-dots i:nth-child(2)::before { animation-delay: .7s; }
+      #boot .b-dots i:nth-child(3)::after, #boot .b-dots i:nth-child(3)::before { animation-delay: 1.4s; }
+      #boot .b-dots i:nth-child(4)::after, #boot .b-dots i:nth-child(4)::before { animation-delay: 2.1s; }
       #boot.is-leaving img { transform: scale(1.04); transition: transform 420ms ease; }
       @keyframes b-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
-      @keyframes b-sweep { 0% { transform: translateX(-115%); } 100% { transform: translateX(255%); } }
+      @keyframes b-ping { 0% { opacity: 1; transform: scale(1.3); } 7% { opacity: 1; transform: scale(1); } 46% { opacity: 0; transform: scale(1); } 100% { opacity: 0; } }
+      @keyframes b-ring { 0% { opacity: .85; transform: scale(1); } 50% { opacity: 0; transform: scale(3.6); } 100% { opacity: 0; transform: scale(3.6); } }
       @media (prefers-reduced-motion: reduce) {
         #boot img, #boot .b-name { animation: none; }
-        #boot .b-bar i { animation: none; width: 100%; opacity: .7; }
+        #boot .b-dots i::after, #boot .b-dots i::before { animation: none; }
+        #boot .b-dots i:nth-child(1)::after { opacity: 1; }
         #boot.is-leaving img { transform: none; }
       }
     </style>
@@ -147,15 +154,15 @@
         } catch (e) { /* storage off / private mode — the default RDM colours above are correct */ }
       })();
     </script>
-    <script type="module" crossorigin src="/assets/index-D157MO-z.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-jnZ1HIrk.css">
+    <script type="module" crossorigin src="/assets/index-amQdQDJM.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-DNLwGH0z.css">
   </head>
   <body>
     <div id="boot">
       <div class="b-wrap">
         <img src="/rdm-logo.webp" alt="" />
         <div class="b-name"><span>Rudimental</span><span>Drumming</span><span>Mastery</span></div>
-        <div class="b-bar" role="status" aria-label="Loading"><i></i></div>
+        <div class="b-dots" role="status" aria-label="Loading"><i></i><i></i><i></i><i></i></div>
       </div>
     </div>
     <div id="root"></div>
