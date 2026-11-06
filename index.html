@@ -103,7 +103,8 @@
       #boot .b-dots i { position: relative; display: block; width: 16px; height: 16px; border-radius: 50%; background: rgba(255,255,255,.18); border: 2px solid #000; }
       #boot .b-dots i::after, #boot .b-dots i::before { content: ""; position: absolute; border-radius: 50%; opacity: 0; will-change: transform, opacity; animation: 2s cubic-bezier(.2,.6,.35,1) infinite; }
       #boot .b-dots i::after { inset: -2px; background: #06aeb9; border: 2px solid #000; animation-name: b-ping; }
-      #boot .b-dots i::before { left: 50%; top: 50%; width: 60px; height: 60px; margin: -30px 0 0 -30px; border: 2px solid #06aeb9; animation-name: b-ring; }
+      /* (Anthony, 2026-11-06: "a bit thicker and is actually centered on the circles".) border-box is what centers it: without it the border sat outside the 60px and the ring ran 2px low and right. */
+      #boot .b-dots i::before { box-sizing: border-box; left: 50%; top: 50%; width: 60px; height: 60px; margin: -30px 0 0 -30px; border: 3px solid #06aeb9; animation-name: b-ring; }
       #boot .b-dots i:nth-child(1)::after { background: #96318d; }
       #boot .b-dots i:nth-child(1)::before { border-color: #d276ca; }
       #boot .b-dots i:nth-child(2)::after, #boot .b-dots i:nth-child(2)::before { animation-delay: .5s; }
